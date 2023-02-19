@@ -1,109 +1,155 @@
 import React, { useState, useEffect } from 'react';
 import firebase from 'firebase/compat/app';
-import Conversation from './Conversation';
+import Game from './Game';
+import { useFirestoreQuery } from '../hooks';
 
 const MainMenu = ({ user }) => {
-  const [conversationId, setConversationId] = useState(false);
+
+  const NUMBER_OF_USERS = 2;
+
+  const [gameId, setGameId] = useState(false);
+
   const [userInQueue, setUserInQueue] = useState(false);
+  const [myRole, setMyRole] = useState(false);
 
   const db = firebase.firestore();
 
   const queueRef = db.collection('queue');
   const usersRef = db.collection('users');
 
-  // Query gets oldest 10 users in the queue
-  const oldestQuery = queueRef.orderBy('createdAt', 'asc').limit(10);
+  // Query gets oldest 3 users in the queue except yourself
+  const oldestQuery = queueRef
+    .where(firebase.firestore.FieldPath.documentId(), '!=', user.uid)
+    .limit(3);
 
-  // Query gets the user's entry in the queue
-  const userQuery = queueRef.doc(user.uid)
+  // Query that gets you in the queue
+  var userInQueueQuery = useFirestoreQuery(queueRef
+    .where(firebase.firestore.FieldPath.documentId(), '==', user.uid))[0];
 
   // This only runs once as the component loads
   useEffect(()=>{
 
         // Check if there exists an entry for the user in the database where the uid matches
         // with the document id, if not, create a new user entry.
-        userQuery.get().then(querySnapshot => {
-          if (querySnapshot.empty) {
-
-            console.log("Adding user to database...")
-
+        usersRef.doc(user.uid).get().then(doc => {
+          if (!doc.exists) {
             usersRef.doc(user.uid).set({
               displayName: user.displayName,
               photoURL: user.photoURL,
-              email: user.email,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              uid: user.uid
             });
           }
         });
   }, []) 
 
   useEffect(() => {
-    const unsubscribe = userQuery.onSnapshot(snapshot => {
 
-      // If you are in the queue, check if you have been matched
-      if (userInQueue){
+    console.log("[userInQueueQuery] changed!")
 
-        // If you have been matched, get the conversationId
-        if (snapshot.data().conversationId) {
+    // If you are in the queue, check if you have been matched
+    if (userInQueue){
 
-          setConversationId(snapshot.data().conversationId);
+      if (userInQueueQuery) {
+
+        // If you have been matched, get the gameId
+        if (userInQueueQuery.gameId) {
+
+          setGameId(userInQueueQuery.gameId);
           setUserInQueue(false);
 
+          // Get the role of the user by looking at the roles dictionary in the games collection
+          const gameRef = db.collection('games').doc(userInQueueQuery.gameId);
+          gameRef.get().then(doc => {
+            if (doc.exists) {
+              const game = doc.data();
+              setMyRole(game.roles[user.uid]);
+            }
+          });
+        
           console.log('Removing yourself from the queue...');
-          queueRef.doc(snapshot.id).delete();
+          queueRef.doc(userInQueueQuery.id).delete();
         }
+      } else {
+        console.log('You have not been matched yet');
       }
-    
-    });
-    return unsubscribe;
-  }, [userQuery]);
+    }
+
+  }, [userInQueueQuery]);
 
 
   const handleOnClick = () => {
+   
     oldestQuery.get().then(querySnapshot => {
 
-      // If there are no users in the queue, add yourself
-      if (querySnapshot.empty) {
+      // If there are less than NUMBER_OF_USERS with had you join the queue, add yourself to the queue
+      
+      if (querySnapshot.size < NUMBER_OF_USERS - 1) {
         queueRef.doc(user.uid).set({
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          conversationId: null,
+          gameId: null,
         });
         setUserInQueue(true);
 
       } else {
 
-        // If there is one user in the queue, match with them
-        // TODO: Improve logic here!
-        const matchedUser = querySnapshot.docs[0];
-        console.log(matchedUser.data())
+        // If there are NUMBER_OF_USERS - 1 users in the queue, match with them
+        const matchedUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        // Create a new conversation
-        const conversationRef = db.collection('conversations').doc();
-        conversationRef.set({
-          users: [user.uid, matchedUser.id],
+        // Create a new game
+        const gameRef = db.collection('games').doc();
+
+        const usersInGame = [user.uid, ...matchedUsers.map(user => user.id)];
+
+        // Set the roles to be the same for testing purposes, i.e. the first user is always the impostor and the rest are always the human, iterating for NUMBER_OF_USERS
+        const roles = {};
+        for (let i = 0; i < NUMBER_OF_USERS; i++) {
+          roles[usersInGame[i]] = i === 0 ? "impostor" : "human";
+        }
+
+        // Make a list named "ask_order" that contains an arrangement of user ids that dictate the order of who gets to ask a question
+        const ask_order = [];
+        for (let i = 0; i < NUMBER_OF_USERS; i++) {
+          ask_order.push(usersInGame[i]);
+        }
+        
+        // Shuffle ask_order
+        for (let i = ask_order.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [ask_order[i], ask_order[j]] = [ask_order[j], ask_order[i]];
+        }
+
+
+
+        // Add the game to the database
+        gameRef.set({
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          active: true,
+          roles: roles,
+          ask_order: ask_order
         });
 
-        const messagesRef = conversationRef.collection('messages');
+        // Initialise first round to round collection in gameRef
+        gameRef.collection('rounds').doc().set({
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          status: 'ASKING',
+          asker: ask_order[0],
+          question: ''
+        })
+    
+        // Get game id
+        const gameId = gameRef.id;
 
-        // Add a welcome message to the conversation
-        // messagesRef.add({
-        //   text: 'Welcome to the chat room!',
-        //   createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        //   uid: 'admin',
-        //   displayName: 'Admin'
-        // });
-
-        // Get conversation id
-        const conversationId = conversationRef.id;
-
-        // Update the matched user in the queue by giving them the conversation id
-        queueRef.doc(matchedUser.id).update({
-          conversationId: conversationId,
+        // Update the matched users in the queue by giving them the game id
+        matchedUsers.forEach(matchedUser => {
+          queueRef.doc(matchedUser.id).update({
+            gameId: gameId,
+          });
         });
 
-        // Update yourself in the queue by giving yourself the conversation id
-        setConversationId(conversationId);
+        // Update yourself in the queue by giving yourself the game id
+        setGameId(gameId);
+
+        setMyRole(roles[user.uid]);
       }
 
     });
@@ -115,14 +161,14 @@ const MainMenu = ({ user }) => {
       <h2>Main menu</h2>
         <p>Welcome, {user.displayName}!</p>
 
-      {!conversationId && !userInQueue && (
+      {!gameId && !userInQueue && (
         <button onClick={handleOnClick}>Join a chat room</button>
       )}
       {userInQueue && (
-        <div>Waiting for another user to join...</div>
+        <div>Waiting for users to join...</div>
       )}
-      {conversationId && (
-        <Conversation user={user} conversationId={conversationId}/>
+      {gameId && (
+        <Game user={user} role={myRole} gameId={gameId}/>
       )}
     </div>
   );
