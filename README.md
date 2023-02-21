@@ -2,7 +2,7 @@
 
 1. There are two teams: Humans and Impostors.
 2. There is an AI within the Impostors Team.
-3. The Humans are trying to figure out who the AI is. The Impostors are trying to impersonate the AI player.
+3. The Humans are trying to figure out who the AI is.
 4. The Humans win if they can spot the AI player. The Impostors win if they can fool the Humans into one of them is the AI player.
 5. The Humans do not know who is on their team.
 
