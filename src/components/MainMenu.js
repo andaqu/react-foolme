@@ -5,7 +5,7 @@ import { useFirestoreQuery } from '../hooks';
 
 const MainMenu = ({ user }) => {
 
-  const NUMBER_OF_USERS = 2;
+  const NUMBER_OF_USERS = 3;
 
   const [gameId, setGameId] = useState(false);
 
@@ -106,33 +106,38 @@ const MainMenu = ({ user }) => {
           roles[usersInGame[i]] = i === 0 ? "impostor" : "human";
         }
 
-        // Make a list named "ask_order" that contains an arrangement of user ids that dictate the order of who gets to ask a question
-        const ask_order = [];
+        // Make a list named "askOrder" that contains an arrangement of user ids that dictate the order of who gets to ask a question
+        const askOrder = [];
         for (let i = 0; i < NUMBER_OF_USERS; i++) {
-          ask_order.push(usersInGame[i]);
+          askOrder.push(usersInGame[i]);
         }
         
-        // Shuffle ask_order
-        for (let i = ask_order.length - 1; i > 0; i--) {
+        // Shuffle askOrder
+        for (let i = askOrder.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [ask_order[i], ask_order[j]] = [ask_order[j], ask_order[i]];
+          [askOrder[i], askOrder[j]] = [askOrder[j], askOrder[i]];
         }
 
-
+        // Initialise votes to have all users vote for themselves
+        const votes = {};
+        for (let i = 0; i < NUMBER_OF_USERS; i++) {
+          votes[usersInGame[i]] = 0;
+        }
 
         // Add the game to the database
         gameRef.set({
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           active: true,
           roles: roles,
-          ask_order: ask_order
+          askOrder: askOrder,
+          votes: votes 
         });
 
         // Initialise first round to round collection in gameRef
         gameRef.collection('rounds').doc().set({
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           status: 'ASKING',
-          asker: ask_order[0],
+          asker: askOrder[0],
           question: ''
         })
     

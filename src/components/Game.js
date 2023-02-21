@@ -12,11 +12,12 @@ const Game = ({ user, role, gameId = null} ) => {
     const db = firebase.firestore();
     
     const gamesRef = db.collection('games');
+    const usersRef = db.collection('users');
+
     const gameRef = gamesRef.doc(gameId);
     const roundsRef = gameRef.collection('rounds')
 
     const [currentAsker, setCurrentAsker] = useState({});
-    const [currentRoundId, setCurrentRoundId] = useState(null);
 
     const [isLoaded, setIsLoaded] = useState(false);
     const [isVoting, setIsVoting] = useState(false);
@@ -25,15 +26,14 @@ const Game = ({ user, role, gameId = null} ) => {
 
     const [gameOver, setGameOver] = useState(false);
 
-    const [votingTimeLeft, setVotingTimeLeft] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(0);
 
-    const latestRoundQuery = useFirestoreQuery(roundsRef.orderBy('createdAt', 'desc').limit(1))[0];
-    const round = latestRoundQuery || {};
+    const round = useFirestoreQuery(roundsRef.orderBy('createdAt', 'desc').limit(1))[0];
     
     const gameQuery = useFirestoreQuery(gamesRef
         .where(firebase.firestore.FieldPath.documentId(), '==', gameId))[0];
 
-    const [suspectedAI, setSuspectedAI] = useState(null);
+    const [suspectedAI, setSuspectedAI] = useState("");
 
     // If user refreshes page or navigates away, call leaveGame function
     useEffect(() => {
@@ -46,13 +46,11 @@ const Game = ({ user, role, gameId = null} ) => {
     // Always get the latest round in roundsRef
     useEffect(() => {
         
-        if (latestRoundQuery) {
-            const round = latestRoundQuery;
-            setCurrentRoundId(round.id);
+        if (round) {
             setIsLoaded(true);
         }
         
-    }, [latestRoundQuery]);
+    }, [round]);
 
     // Check if game is still active
     useEffect(() => {
@@ -76,45 +74,64 @@ const Game = ({ user, role, gameId = null} ) => {
     // Check changes in the status of the current round
     useEffect(() => {
   
-        if (currentRoundId) {
             
-            if (round) {
-                console.log("Latest round query is " + round.status)
+        if (round) {            
+
+            if (round.status === "ASKING") {
+                console.log("Round is now in asking phase");
+                setCurrentAsker(round.asker);
+            } 
+
+            else if (round.status === "VOTING"){
+                console.log("Round is now in voting phase");
+                setTimeLeft(10);
+                setIsVoting(true);
+
+                // Decrement voting time left every second. Once it reaches 0, set isVoting to false.
+                const interval = setInterval(() => {
+                    setTimeLeft(timeLeft => timeLeft - 1);
+                }
+                , 1000);
+
+                setTimeout(() => {
+                    clearInterval(interval);
+                    setIsVoting(false);
                 
 
-                if (round.status === "ASKING") {
-                    console.log("Current asker ID is " + round.asker + " and you are " + user.uid);
-                    setCurrentAsker(round.asker);
-                } 
+                    // Get index of current asker and increment. If index goes out of bounds of game.askOrder, set game.active to false.
 
-                else if (round.status === "VOTING"){
-                    console.log("Round is now in voting phase");
-                    setVotingTimeLeft(10);
-                    setIsVoting(true);
+                    const askOrder = gameQuery.askOrder;
+                    const currentAskerIndex = askOrder.indexOf(round.asker);
+                    const nextAskerIndex = currentAskerIndex + 1;
 
-                    // Decrement voting time left every second. Once it reaches 0, set isVoting to false.
-                    const interval = setInterval(() => {
-                        setVotingTimeLeft(votingTimeLeft => votingTimeLeft - 1);
+                    if (nextAskerIndex >= askOrder.length) {
+
+                        setGameOver(true);
+                        // The suspected AI is the person with the most votes in gameQuery.votes
+                        const votes = gameQuery.votes;
+                        const suspectedAIuid = Object.keys(votes).reduce((a, b) => votes[a] > votes[b] ? a : b);
+                        
+                        usersRef.doc(suspectedAIuid).get().then((doc) => {
+                            if (doc.exists) {
+                                const displayName = doc.data().displayName;
+                                console.log("Setting suspected AI to " + displayName + "...")
+                                setSuspectedAI(displayName);
+                            } 
+                        });
+                        
+
                     }
-                    , 1000);
+                    else {
 
-                    setTimeout(() => {
-                        clearInterval(interval);
-                        setIsVoting(false);
-                    
+                        // The problem with this is that everyone is making a new round at the same time. The solution is to have the current asker make the new round.
 
-                        // Get index of current asker and increment. If index goes out of bounds of game.ask_order, set game.active to false.
+                        if (currentAsker === user.uid) {
 
-                        const askOrder = gameQuery.ask_order;
-                        const currentAskerIndex = askOrder.indexOf(round.asker);
-                        const nextAskerIndex = currentAskerIndex + 1;
+                            // Set current round to "FINISHED"
+                            roundsRef.doc(round.id).update({
+                                status: "FINISHED",
+                            });
 
-                        if (nextAskerIndex >= askOrder.length) {
-                            setGameOver(true);
-                            // The suspected AI is the person with the most votes across all rounds.
-                            // TODO: Get the suspected AI
-                        }
-                        else {
                             const nextAsker = askOrder[nextAskerIndex];
                             const newRound = {
                                 asker: nextAsker,
@@ -125,15 +142,17 @@ const Game = ({ user, role, gameId = null} ) => {
                         }
 
                     }
-                    , 10000);
-
 
                 }
+                , 10000);
+
 
             }
 
         }
-    }, [currentRoundId, round.status]);
+
+        
+    }, [round]);
 
 
     const leaveGame = () => {
@@ -164,7 +183,7 @@ const Game = ({ user, role, gameId = null} ) => {
                 isVoting ? (
                 <div>
                     <h3> Voting time! </h3>
-                    <p> {votingTimeLeft} seconds left to vote! </p>
+                    <p> {timeLeft} seconds left to vote! </p>
                     <Answers gameId={gameId} round={round} voteable={true} />
                 </div>
                 ) : (

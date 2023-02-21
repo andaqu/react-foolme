@@ -9,11 +9,27 @@ const Asker = ({gameId = null, round=null}) => {
     const [currentQuestion, setCurrentQuestion] = useState('');
 
     const db = firebase.firestore();
-
-    const roundsRef = firebase.firestore().collection('games').doc(gameId).collection('rounds');
+    
     const gameRef = db.collection('games').doc(gameId);
-    const roundRef = gameRef.collection('rounds').doc(round.id);
+    const roundsRef = gameRef.collection('rounds');
+    const roundRef = roundsRef.doc(round.id);
 
+    const [timeLeft, setTimeLeft] = useState(30);
+
+    // Set timer for 30 seconds. When timer reaches 0, console log "Time's up!"
+
+    useEffect(() => {
+        if (!asked) {
+            if (timeLeft > 0) {
+                setTimeout(() => {
+                    setTimeLeft(timeLeft - 1);
+                }, 1000);
+            } else if (timeLeft === 0) {
+                // TODO: Logic that kicks the player out due to inactivity
+                console.log("Time's up!");
+            }
+        }
+    }, [timeLeft, asked]);
 
     useEffect(() => {
 
@@ -29,8 +45,10 @@ const Asker = ({gameId = null, round=null}) => {
         // Add question to round
         roundRef.update({
             question: newQuestion,
-            status: 'ASKED'
+            status: 'ANSWERING'
         });
+
+        // TODO: Call function to send question and roundID to generate AI answer. Once AI answer is obtained, proceed.
 
         setCurrentQuestion(newQuestion)
 
@@ -53,6 +71,7 @@ const Asker = ({gameId = null, round=null}) => {
             <div> 
 
                 <p>It's your turn to ask a question!</p>
+                <p>Time left to ask: {timeLeft}</p>
 
                 <form onSubmit={handleOnSubmit}>
                     <input

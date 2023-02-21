@@ -16,15 +16,30 @@ const Answerer = ({gameId = null, round}) => {
     const answerRef = answersRef.doc(firebase.auth().currentUser.uid)
 
     const [currentQuestion, setCurrentQuestion] = useState('');
+    const [timeLeft, setTimeLeft] = useState(0);
 
     useEffect(() => {
 
-          if (round) {
+          if (round.status==="ANSWERING") {
               setCurrentQuestion(round.question);
+              setTimeLeft(20);
           }
 
-    }, [round]);
+    }, [round.status]);
 
+    useEffect(() => {
+        if (!answered) {
+            if (timeLeft > 0) {
+                setTimeout(() => {
+                    setTimeLeft(timeLeft - 1);
+                }, 1000);
+            } else if (timeLeft === 0) {
+              // TODO: Logic that kicks the player out due to inactivity
+              console.log("Time's up!");
+            }
+        }
+    }, [timeLeft, answered]);
+      
     const handleOnSubmit = (e) => {
         e.preventDefault();
         
@@ -38,14 +53,12 @@ const Answerer = ({gameId = null, round}) => {
 
         // If documents in AnswersRef == 1, set status of round to "VOTING"
         answersRef.get().then((querySnapshot) => {
-            if (querySnapshot.size == 1) {
+            if (querySnapshot.size == 2) {
                 roundRef.update({
                     status: 'VOTING'
                 });
             }
         });
-
-
 
     }
 
@@ -64,6 +77,7 @@ const Answerer = ({gameId = null, round}) => {
           ) : currentQuestion ? (
             <div>
               <h3>Question: {currentQuestion}</h3>
+              <p>Time left to answer: {timeLeft}</p>
               <div>
                 <form onSubmit={handleOnSubmit}>
                   <input

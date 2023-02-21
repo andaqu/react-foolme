@@ -1,70 +1,65 @@
-# Getting Started with Create React App
+### RULES
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+1. There are two teams: Humans and Impostors.
+2. There is an AI within the Impostors Team.
+3. The Humans are trying to figure out who the AI is. The Impostors are trying to impersonate the AI player.
+4. The Humans win if they can spot the AI player. The Impostors win if they can fool the Humans into one of them is the AI player.
+5. The Humans do not know who is on their team.
 
-## Available Scripts
+### GAMEPLAY
 
-In the project directory, you can run:
+**Asking stage:** One human asks a question.
 
-### `npm start`
+```
+Human 1: Why is the sky blue?
+Human 2:
+Human 3:
+Impostor 1:
+Impostor 2:
+Impostor 3 (AI):
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+**Answering stage:** Everyone, except Human 1, answers the question.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```
+Human 1:
+Human 2: Because the sky is blue.
+Human 3: I don't know.
+Impostor 1: That is a great question!
+Impostor 2: It's because of the atmosphere.
+Impostor 3 (AI): The sky is blue because of the atmosphere.
+```
 
-### `npm test`
+**Voting stage:** Everyone gets one vote for who they think is the AI.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```
+*Humans vote*
 
-### `npm run build`
+Human 1: [Can't be voted for since they asked the question.]
+Human 2: +1
+Human 3: +0
+Impostor 1: +0
+Impostor 2: +2
+AI: +0
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+In this case, the Humans voted Impostor 2 because they think he is the AI. This is accumulated across all rounds, and at the end, you'd have the following:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```
+Human 1: +1
+Human 2: +2
+Human 3: +0
+Impostor 1: +1
+Impostor 2: +3
+AI: +2
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+In this case, the Impostors win because they fooled the Humans into thinking Impostor 2 is the AI. The Humans lose because they didn't figure out who the AI was.
 
-### `npm run eject`
+### Q&A
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+How can the Humans distinguish between the AI and the Impostors?
+> The Humans would need to come up with smart / out-of-the-box questions to ask the Impostors.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+How can the Impostors fool the Humans?
+> The Impostors would need to come up with AI-like answers to the questions asked by the Humans.

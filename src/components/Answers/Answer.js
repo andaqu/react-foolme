@@ -46,9 +46,29 @@ const Answer = ({ gameId, roundId, answer, uid, voteable=false }) => {
             votes: firebase.firestore.FieldValue.increment(1)
         });
 
-        // Add user to voters within round
-        roundRef.update({
-            voters: firebase.firestore.FieldValue.arrayUnion(firebase.auth().currentUser.uid)
+        // Update gameRef with new vote. gameRef has a field called "votes" which is a dictionary of {uid: votes}.
+
+        gameRef.get().then((doc) => {
+            
+            if (doc.exists) {
+
+                var votes = doc.data().votes;
+                console.log(votes);
+                if (votes) {
+                    if (votes[uid]) {
+                        votes[uid] += 1;
+                    } else {
+                        votes[uid] = 1;
+                    }
+                } else {
+                    votes = {};
+                    votes[uid] = 1;
+                }
+                gameRef.update({
+                    votes: votes
+                });
+            }
+
         });
 
         setAlreadyVoted(true);
