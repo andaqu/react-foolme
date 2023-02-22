@@ -5,7 +5,7 @@ import { useFirestoreQuery } from '../hooks';
 
 const MainMenu = ({ user }) => {
 
-  const NUMBER_OF_USERS = 3;
+  const NUMBER_OF_USERS = 2;
 
   const [gameId, setGameId] = useState(false);
 
@@ -35,6 +35,7 @@ const MainMenu = ({ user }) => {
           if (!doc.exists) {
             usersRef.doc(user.uid).set({
               displayName: user.displayName,
+              email: user.email,
               photoURL: user.photoURL,
               uid: user.uid
             });
@@ -123,6 +124,7 @@ const MainMenu = ({ user }) => {
         for (let i = 0; i < NUMBER_OF_USERS; i++) {
           votes[usersInGame[i]] = 0;
         }
+        votes["ai"] = 0;
 
         // Add the game to the database
         gameRef.set({
@@ -130,7 +132,8 @@ const MainMenu = ({ user }) => {
           active: true,
           roles: roles,
           askOrder: askOrder,
-          votes: votes 
+          votes: votes,
+          aiAnswers: {},
         });
 
         // Initialise first round to round collection in gameRef

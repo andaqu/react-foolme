@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import firebase from 'firebase/compat/app';
-import { useFirestoreQuery } from '../hooks';
+import { useFirestoreQuery, generateAIAnswer } from '../hooks';
 
 const Asker = ({gameId = null, round=null}) => {
 
@@ -13,6 +13,7 @@ const Asker = ({gameId = null, round=null}) => {
     const gameRef = db.collection('games').doc(gameId);
     const roundsRef = gameRef.collection('rounds');
     const roundRef = roundsRef.doc(round.id);
+    const answersRef = roundRef.collection('answers');
 
     const [timeLeft, setTimeLeft] = useState(30);
 
@@ -39,20 +40,50 @@ const Asker = ({gameId = null, round=null}) => {
 
     }, [round]);
 
-    const handleOnSubmit = (e) => {
+    const handleOnSubmit = async (e) => {
         e.preventDefault();
-        
+
+
+        // Check if question is already in game's aiAnswers dictionary
+        // If it is, it means that it has already been asked
+
+        const game = await gameRef.get().then((doc) => {
+            return doc.data();
+        });
+        const previousAIAnswers = game.aiAnswers;
+
+        if (previousAIAnswers[newQuestion]) {
+            alert("This question has already been asked!");
+            return;
+        }
+ 
+        setAsked(true);
+
+        const aiAnswer = await generateAIAnswer(newQuestion, previousAIAnswers);
+
         // Add question to round
         roundRef.update({
             question: newQuestion,
             status: 'ANSWERING'
         });
 
-        // TODO: Call function to send question and roundID to generate AI answer. Once AI answer is obtained, proceed.
+        // Add AI answer to round's answers collection in the form of {uid: answer}
+        answersRef.doc('ai').set({
+            text: aiAnswer,
+            votes: 0
+        });
+
+        // Add question:answer pair to game's aiAnswers dictionary
+        gameRef.update({
+            aiAnswers: {
+                [newQuestion]: aiAnswer, 
+                ...previousAIAnswers
+            }
+        });
 
         setCurrentQuestion(newQuestion)
 
-        setAsked(true);
+        
 
     }
 

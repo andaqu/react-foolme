@@ -53,7 +53,6 @@ const Answer = ({ gameId, roundId, answer, uid, voteable=false }) => {
             if (doc.exists) {
 
                 var votes = doc.data().votes;
-                console.log(votes);
                 if (votes) {
                     if (votes[uid]) {
                         votes[uid] += 1;

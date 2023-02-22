@@ -71,3 +71,56 @@ export function useAuthState(auth) {
 
   return { user, initializing };
 }
+
+export async function generateAIAnswer(question, previousAnswers) {
+
+  console.log(previousAnswers)
+  
+  // previousAnswers is a dictionary of {question: answer}. Build a string of previous answers in this format: "Q: What is your name? A: My name is John. Q: What is your favorite color? A: My favorite color is blue."
+  var previousAnswersString = "";
+  for (var key in previousAnswers) {
+    previousAnswersString += `Q: ${key} A: ${previousAnswers[key]}. `;
+  }
+
+  const prompt = `You are trying to fool others thinking you are a human. These were your previous answers: ${previousAnswersString}. Write a very short answer (in 5 words) using lowercase, casual English to answer the next question: ${question}`;
+  var response = "";
+
+  console.log(`Sending prompt to OpenAI...`);
+
+  while (response == "") {
+    try {
+      response = await openai.createCompletion({
+        model: "text-davinci-003",
+        prompt: prompt,
+        n: 1,
+        max_tokens: 20,
+        temperature: 1
+      });
+    } catch (error) {
+      console.log(error);
+      console.log("There was an error... trying again...")
+    }
+  }
+
+  var answer = response.data.choices[0].text;
+
+  // Remove newlines from the answer
+  answer = answer.replace(/(\r\n|\n|\r)/gm, "");
+
+  // If the answer starts or ends with quotes (" or '), remove them
+  if (answer.startsWith('"') || answer.startsWith("'")) {
+    answer = answer.substring(1);
+  }
+
+  if (answer.endsWith('"') || answer.endsWith("'")) {
+    answer = answer.substring(0, answer.length - 1);
+  }
+  
+  return answer;
+
+}
+
+
+
+
+

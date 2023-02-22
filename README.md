@@ -25,7 +25,7 @@ Impostor 3 (AI):
 Human 1:
 Human 2: Because the sky is blue.
 Human 3: I don't know.
-Impostor 1: That is a great question!
+Impostor 1: I'm a human, don't vote for me!
 Impostor 2: It's because of the atmosphere.
 Impostor 3 (AI): The sky is blue because of the atmosphere.
 ```

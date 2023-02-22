@@ -28,6 +28,8 @@ const Game = ({ user, role, gameId = null} ) => {
 
     const [timeLeft, setTimeLeft] = useState(0);
 
+    const [teamWon, setTeamWon] = useState("");
+
     const round = useFirestoreQuery(roundsRef.orderBy('createdAt', 'desc').limit(1))[0];
     
     const gameQuery = useFirestoreQuery(gamesRef
@@ -104,18 +106,27 @@ const Game = ({ user, role, gameId = null} ) => {
                     const currentAskerIndex = askOrder.indexOf(round.asker);
                     const nextAskerIndex = currentAskerIndex + 1;
 
+                    
+                    // Set current round to "FINISHED"
+                    roundsRef.doc(round.id).update({
+                        status: "FINISHED",
+                    });
+
                     if (nextAskerIndex >= askOrder.length) {
 
                         setGameOver(true);
+
                         // The suspected AI is the person with the most votes in gameQuery.votes
                         const votes = gameQuery.votes;
+                        console.log(votes)
                         const suspectedAIuid = Object.keys(votes).reduce((a, b) => votes[a] > votes[b] ? a : b);
                         
+                        if (suspectedAIuid === "ai") setTeamWon("Humans");
+                        else setTeamWon("Impostors");
+
                         usersRef.doc(suspectedAIuid).get().then((doc) => {
                             if (doc.exists) {
-                                const displayName = doc.data().displayName;
-                                console.log("Setting suspected AI to " + displayName + "...")
-                                setSuspectedAI(displayName);
+                                setSuspectedAI(doc.data());
                             } 
                         });
                         
@@ -123,14 +134,8 @@ const Game = ({ user, role, gameId = null} ) => {
                     }
                     else {
 
-                        // The problem with this is that everyone is making a new round at the same time. The solution is to have the current asker make the new round.
 
                         if (currentAsker === user.uid) {
-
-                            // Set current round to "FINISHED"
-                            roundsRef.doc(round.id).update({
-                                status: "FINISHED",
-                            });
 
                             const nextAsker = askOrder[nextAskerIndex];
                             const newRound = {
@@ -177,7 +182,8 @@ const Game = ({ user, role, gameId = null} ) => {
             gameOver ? (
                 <div>
                 <h3> Game over! </h3>
-                <p> The suspected AI is {suspectedAI} </p>
+                <p> {teamWon} won! </p>
+                <p> {teamWon == "Humans" ? "The AI was spotted!" : `The suspected AI was ${suspectedAI.displayName} which is actually a ${gameQuery.roles[suspectedAI.uid]}!`} </p>
                 </div>
             ) : (
                 isVoting ? (
