@@ -1,10 +1,9 @@
 ### RULES
 
-1. There are two teams: Humans and Impostors.
-2. There is an AI within the Impostors Team.
+1. There are two teams: Humans and Impostors. There is also an AI player.
+2. The Impostors know which players are in which team, but the Humans do not.
 3. The Humans are trying to figure out who the AI is.
-4. The Humans win if they can spot the AI player. The Impostors win if they can fool the Humans into one of them is the AI player.
-5. The Humans do not know who is on their team.
+4. The Humans win if they can spot the AI player. The Impostors win if they can fool the Humans into thinking one of them is the AI player.
 
 ### GAMEPLAY
 
@@ -16,7 +15,7 @@ Human 2:
 Human 3:
 Impostor 1:
 Impostor 2:
-Impostor 3 (AI):
+AI:
 ```
 
 **Answering stage:** Everyone, except Human 1, answers the question.
@@ -27,7 +26,7 @@ Human 2: Because the sky is blue.
 Human 3: I don't know.
 Impostor 1: That is a great question!
 Impostor 2: It's because of the atmosphere.
-Impostor 3 (AI): The sky is blue because of the atmosphere.
+AI: The sky is blue because of the atmosphere.
 ```
 
 **Voting stage:** Everyone gets one vote for who they think is the AI.
