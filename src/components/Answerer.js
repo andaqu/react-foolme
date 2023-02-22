@@ -53,7 +53,7 @@ const Answerer = ({gameId = null, round}) => {
 
         // If documents in AnswersRef == 1, set status of round to "VOTING"
         answersRef.get().then((querySnapshot) => {
-            if (querySnapshot.size == 2) {
+            if (querySnapshot.size == 3) {
                 roundRef.update({
                     status: 'VOTING'
                 });

@@ -74,15 +74,23 @@ export function useAuthState(auth) {
 
 export async function generateAIAnswer(question, previousAnswers) {
 
-  console.log(previousAnswers)
+  return "This is a placeholder answer."
   
   // previousAnswers is a dictionary of {question: answer}. Build a string of previous answers in this format: "Q: What is your name? A: My name is John. Q: What is your favorite color? A: My favorite color is blue."
   var previousAnswersString = "";
   for (var key in previousAnswers) {
-    previousAnswersString += `Q: ${key} A: ${previousAnswers[key]}. `;
+    previousAnswersString += `[Q: ${key} A: ${previousAnswers[key]}.] `;
   }
 
-  const prompt = `You are trying to fool others thinking you are a human. These were your previous answers: ${previousAnswersString}. Write a very short answer (in 5 words) using lowercase, casual English to answer the next question: ${question}`;
+  var prompt = ""
+
+  if (previousAnswersString == "") {
+    prompt = `You are trying to fool others thinking you are a human. Write a very short answer (in 5 words) using lowercase, casual English to answer the next question: ${question}`;
+  } else {
+    prompt = `You are trying to fool others thinking you are a human. These were your previous answers: ${previousAnswersString}. Write a very short answer (in 5 words) using lowercase, casual English to answer the next question. Q: ${question} A:`;
+  }
+
+ 
   var response = "";
 
   console.log(`Sending prompt to OpenAI...`);

@@ -3,7 +3,7 @@ import firebase from 'firebase/compat/app';
 import Answer from './Answer';
 import { useFirestoreQuery } from '../../hooks';
 
-const Answers = ({gameId = null, round=null, voteable=false}) => {
+const Answers = ({gameId = null, round=null, voteable=false, role}) => {
 
     const [answers, setAnswers] = useState([]);
 
@@ -18,6 +18,8 @@ const Answers = ({gameId = null, round=null, voteable=false}) => {
     const [everyoneAnswered, setEveryoneAnswered] = useState(false);
 
     const roundStatus = round.status || "INITIAL"
+
+    const [voted, setVoted] = useState(false);
 
     // If roundId changes, reset everyoneAnswered to false
     useEffect(() => {
@@ -36,6 +38,41 @@ const Answers = ({gameId = null, round=null, voteable=false}) => {
         
     }, [roundStatus]);
 
+    const handleOnClick = (uid) => {
+
+      console.log("Voting for " + uid);
+
+      answersRef.doc(uid).update({
+          votes: firebase.firestore.FieldValue.increment(1)
+      });
+
+      // Update gameRef with new vote. gameRef has a field called "votes" which is a dictionary of {uid: votes}.
+
+      gameRef.get().then((doc) => {
+          
+          if (doc.exists) {
+
+              var votes = doc.data().votes;
+              if (votes) {
+                  if (votes[uid]) {
+                      votes[uid] += 1;
+                  } else {
+                      votes[uid] = 1;
+                  }
+              } else {
+                  votes = {};
+                  votes[uid] = 1;
+              }
+              gameRef.update({
+                  votes: votes
+              });
+          }
+
+      });
+
+      setVoted(true);
+  }
+
     return (
         <div>
           <p>Answers:</p>
@@ -44,12 +81,14 @@ const Answers = ({gameId = null, round=null, voteable=false}) => {
           ) : (
             answersQuery.map((answer) => (
               <Answer
-                key={answer.uid}
+                key={answer.id}
                 gameId={gameId}
                 roundId={round.id}
                 uid={answer.id}
                 answer={answer.text}
                 voteable={voteable}
+                handleOnClick={handleOnClick}
+                canVote={!voted && role == "human"}
               />
             ))
           )}

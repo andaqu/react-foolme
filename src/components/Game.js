@@ -190,7 +190,7 @@ const Game = ({ user, role, gameId = null} ) => {
                 <div>
                     <h3> Voting time! </h3>
                     <p> {timeLeft} seconds left to vote! </p>
-                    <Answers gameId={gameId} round={round} voteable={true} />
+                    <Answers gameId={gameId} round={round} voteable={true} role={role}/>
                 </div>
                 ) : (
                 <div>
@@ -199,7 +199,6 @@ const Game = ({ user, role, gameId = null} ) => {
                     ) : (
                     <Answerer gameId={gameId} round={round}  />
                     )}
-                    <Answers gameId={gameId} round={round}  />
                 </div>
                 )
             )

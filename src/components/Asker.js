@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import firebase from 'firebase/compat/app';
 import { useFirestoreQuery, generateAIAnswer } from '../hooks';
+import Answerer from './Answerer';
 
 const Asker = ({gameId = null, round=null}) => {
 
@@ -94,8 +95,8 @@ const Asker = ({gameId = null, round=null}) => {
     return (
         <div>
             {asked ? (
-            
-            <h3>Question: {currentQuestion}</h3>
+
+            <Answerer gameId={gameId} round={round}/>
 
             ) : (
 
