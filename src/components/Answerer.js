@@ -22,7 +22,10 @@ const Answerer = ({gameId = null, round}) => {
 
           if (round.status==="ANSWERING") {
               setCurrentQuestion(round.question);
+              setAnswered(false)
               setTimeLeft(20);
+          } else if (round.status==="ASKING") {
+              setCurrentQuestion("")
           }
 
     }, [round.status]);
@@ -60,6 +63,8 @@ const Answerer = ({gameId = null, round}) => {
             }
         });
 
+        setNewAnswer("");
+
     }
 
     const handleOnChange = e => {
@@ -72,7 +77,7 @@ const Answerer = ({gameId = null, round}) => {
           {answered ? (
             <div>
             <h3>Question: {currentQuestion}</h3>
-            <p>You have already answered the question.</p>
+            {/* <p>You have already answered the question.</p> */}
             </div>
           ) : currentQuestion ? (
             <div>

@@ -17,6 +17,8 @@ const MainMenu = ({ user }) => {
   const queueRef = db.collection('queue');
   const usersRef = db.collection('users');
 
+  const [users, setUsers] = useState([]);
+
   // Query gets oldest 3 users in the queue except yourself
   const oldestQuery = queueRef
     .where(firebase.firestore.FieldPath.documentId(), '!=', user.uid)
@@ -45,8 +47,6 @@ const MainMenu = ({ user }) => {
 
   useEffect(() => {
 
-    console.log("[userInQueueQuery] changed!")
-
     // If you are in the queue, check if you have been matched
     if (userInQueue){
 
@@ -60,10 +60,14 @@ const MainMenu = ({ user }) => {
 
           // Get the role of the user by looking at the roles dictionary in the games collection
           const gameRef = db.collection('games').doc(userInQueueQuery.gameId);
-          gameRef.get().then(doc => {
+          gameRef.get().then(async doc => {
             if (doc.exists) {
               const game = doc.data();
               setMyRole(game.roles[user.uid]);
+              const userIds = Object.keys(game.roles);
+              userIds.push("ai");
+              const users = await getUserProfilesFromIds(userIds)
+            setUsers(users);
             }
           });
         
@@ -77,10 +81,14 @@ const MainMenu = ({ user }) => {
 
   }, [userInQueueQuery]);
 
+  const getUserProfilesFromIds = (userIds) => {
+    return Promise.all(userIds.map(userId => usersRef.doc(userId).get().then(doc => doc.data())));
+  }
+
 
   const handleOnClick = () => {
    
-    oldestQuery.get().then(querySnapshot => {
+    oldestQuery.get().then(async querySnapshot => {
 
       // If there are less than NUMBER_OF_USERS with had you join the queue, add yourself to the queue
       
@@ -154,10 +162,18 @@ const MainMenu = ({ user }) => {
           });
         });
 
+        setMyRole(roles[user.uid]);
+
+        const userIds = Object.keys(roles);
+        userIds.push("ai");
+
+        const users = await getUserProfilesFromIds(userIds)
+        setUsers(users);
+
         // Update yourself in the queue by giving yourself the game id
         setGameId(gameId);
 
-        setMyRole(roles[user.uid]);
+        
       }
 
     });
@@ -176,7 +192,7 @@ const MainMenu = ({ user }) => {
         <div>Waiting for users to join...</div>
       )}
       {gameId && (
-        <Game user={user} role={myRole} gameId={gameId}/>
+        <Game user={user} users={users} role={myRole} gameId={gameId}/>
       )}
     </div>
   );

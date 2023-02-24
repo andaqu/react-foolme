@@ -9,7 +9,7 @@
 
 ### GAMEPLAY
 
-**Asking stage:** One human asks a question.
+**Asking stage:** Someone asks a question.
 
 ```
 Question: Why is the sky blue? (posed by Human 1, but no one knows this)

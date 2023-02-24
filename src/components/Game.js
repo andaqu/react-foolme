@@ -7,7 +7,7 @@ import Answers from './Answers/Answers';
 import { useFirestoreQuery } from '../hooks';
 
 
-const Game = ({ user, role, gameId = null} ) => {
+const Game = ({ user, role, users, gameId = null} ) => {
 
     const db = firebase.firestore();
     
@@ -17,10 +17,9 @@ const Game = ({ user, role, gameId = null} ) => {
     const gameRef = gamesRef.doc(gameId);
     const roundsRef = gameRef.collection('rounds')
 
-    const [currentAsker, setCurrentAsker] = useState({});
-
     const [isLoaded, setIsLoaded] = useState(false);
     const [isVoting, setIsVoting] = useState(false);
+    const [isAsking, setIsAsking] = useState(false);
 
     const [quit, setQuit] = useState(false);
 
@@ -48,11 +47,11 @@ const Game = ({ user, role, gameId = null} ) => {
     // Always get the latest round in roundsRef
     useEffect(() => {
         
-        if (round) {
+        if (round && users) {
             setIsLoaded(true);
         }
         
-    }, [round]);
+    }, [round, users]);
 
     // Check if game is still active
     useEffect(() => {
@@ -81,7 +80,12 @@ const Game = ({ user, role, gameId = null} ) => {
 
             if (round.status === "ASKING") {
                 console.log("Round is now in asking phase");
-                setCurrentAsker(round.asker);
+
+                // If current user is the asker, set isAsking to true
+                if (round.asker === user.uid) {
+                    console.log("test?")
+                    setIsAsking(true);
+                }
             } 
 
             else if (round.status === "VOTING"){
@@ -135,7 +139,7 @@ const Game = ({ user, role, gameId = null} ) => {
                     else {
 
 
-                        if (currentAsker === user.uid) {
+                        if (round.asker === user.uid) {
 
                             const nextAsker = askOrder[nextAskerIndex];
                             const newRound = {
@@ -186,21 +190,32 @@ const Game = ({ user, role, gameId = null} ) => {
                 <p> {teamWon == "Humans" ? "The AI was spotted!" : `The suspected AI was ${suspectedAI.displayName} which is actually a ${gameQuery.roles[suspectedAI.uid]}!`} </p>
                 </div>
             ) : (
-                isVoting ? (
                 <div>
-                    <h3> Voting time! </h3>
-                    <p> {timeLeft} seconds left to vote! </p>
-                    <Answers gameId={gameId} round={round} voteable={true} role={role}/>
+
+                    {
+                    isVoting ? (
+                    <div>
+                        <h3> Voting time! </h3>
+                        <p> {timeLeft} seconds left to vote! </p>
+                    </div>
+                    ) 
+                    :
+                    (
+                        null
+                    )
+                    }
+                    
+                    <div>
+                        {isAsking ? (
+                        <Asker gameId={gameId} round={round} />
+                        ) : (
+                        <Answerer gameId={gameId} round={round}  />
+                        )}
+                    </div>
+                    
+                    <Answers gameId={gameId} round={round} role={role} users={users} user={user}/>
+                        
                 </div>
-                ) : (
-                <div>
-                    {currentAsker === user.uid ? (
-                    <Asker gameId={gameId} round={round} />
-                    ) : (
-                    <Answerer gameId={gameId} round={round}  />
-                    )}
-                </div>
-                )
             )
             ) : (
             <p>Loading...</p>
