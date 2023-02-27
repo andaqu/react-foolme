@@ -12,13 +12,27 @@ const Answers = ({gameId, round, role, users, user}) => {
     const roundRef = roundsRef.doc(round.id);
     const answersRef = roundRef.collection('answers');
 
-    const answersQuery = useFirestoreQuery(answersRef);
+    const [answers, setAnswers] = useState({});
 
     const [voted, setVoted] = useState(false);
 
     useEffect(() => {
         if (round.status == "VOTING") {
             setVoted(false);
+
+            // Get all answers from round
+            answersRef.get().then((querySnapshot) => {
+                var answers = {};
+                querySnapshot.forEach((doc) => {
+                    answers[doc.id] = doc.data();
+                });
+                setAnswers(answers);
+                
+
+            });
+
+        } else if (round.status == "ASKING") {
+            setAnswers({});
         }
     }, [round.status]);
 
@@ -32,7 +46,7 @@ const Answers = ({gameId, round, role, users, user}) => {
 
       // Update gameRef with new vote. gameRef has a field called "votes" which is a dictionary of {uid: votes}.
 
-      gameRef.get().then((doc) => {
+       gameRef.get().then((doc) => {
           
           if (doc.exists) {
 
@@ -54,29 +68,31 @@ const Answers = ({gameId, round, role, users, user}) => {
 
       });
 
+      console.log("voted")
+
       setVoted(true);
   }
 
     return (
         <div>
           <p>Answers:</p>
-         
-          {users.map((u) => {
+
+          {Object.keys(users).map((uid) => {
               return (
-                  <div key={u.uid}>
+                  <div key={uid}>
                       {/* <p>{user.displayName}</p> */}
-                      <img width="50" height="50" src={u.photoURL} alt="Avatar"/>
+                      <img width="50" height="50" src={users[uid].photoURL} alt="Avatar"/>
  
-                      {round.status == "VOTING" ? (
+                      {Object.keys(answers).length > 0 ? (
+                        
                         <div>
-                        { console.log(answersQuery)}
                           <Answer 
                             gameId={gameId} 
                             roundId={round.id}
-                            answer={answersQuery.filter((answer) => answer.id == u.uid)[0].text}
-                            uid={u.uid}
+                            answer={answers[uid].text}
+                            uid={uid}
                             handleOnClick={handleOnClick} 
-                            canVote={!voted && role == "human" && u.uid != user.uid}/>
+                            canVote={!voted && role == "human" && uid != user.uid}/>
                           </div>
                       ) : null}
                   </div>

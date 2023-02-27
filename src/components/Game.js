@@ -7,12 +7,11 @@ import Answers from './Answers/Answers';
 import { useFirestoreQuery } from '../hooks';
 
 
-const Game = ({ user, role, users, gameId = null} ) => {
+const Game = ({ user, role, users, setUsers, gameId = null} ) => {
 
     const db = firebase.firestore();
     
     const gamesRef = db.collection('games');
-    const usersRef = db.collection('users');
 
     const gameRef = gamesRef.doc(gameId);
     const roundsRef = gameRef.collection('rounds')
@@ -36,13 +35,14 @@ const Game = ({ user, role, users, gameId = null} ) => {
 
     const [suspectedAI, setSuspectedAI] = useState("");
 
-    // If user refreshes page or navigates away, call leaveGame function
+    // If user refreshes page or navigates away, call and await leaveGame async function
     useEffect(() => {
         window.addEventListener('beforeunload', leaveGame);
         return () => {
-          window.removeEventListener('beforeunload', leaveGame);
-        };
-      }, []);
+            window.removeEventListener('beforeunload', leaveGame);
+        }
+    }, []);
+    
 
     // Always get the latest round in roundsRef
     useEffect(() => {
@@ -53,6 +53,31 @@ const Game = ({ user, role, users, gameId = null} ) => {
         
     }, [round, users]);
 
+    // Print out the name and date-time of someone leaving the game. If the user has a date-time in abandonedAt, they have left the game.
+    useEffect(() => {
+        if (gameQuery) {
+            const game = gameQuery;
+         
+
+            if (Object.values(game.abandonedAt).every((value) => value === false)) return;
+
+            // Get the most recent abandoner in game.abandonedAt (dictionary of {uid: date-time})
+            const abandonerUid = Object.keys(game.abandonedAt).reduce((a, b) => game.abandonedAt[a] > game.abandonedAt[b] ? a : b);
+
+            // If the most recent abandoner is not the current user, print out their name and date-time
+            if (abandonerUid !== user.uid) {
+
+                console.log("Someone left?")
+                
+                // Update users by removing the user with abandonerUid
+                const newUsers = {...users};
+                delete newUsers[abandonerUid];
+                setUsers(newUsers);
+
+            }
+        }
+    }, [gameQuery]);
+
     // Check if game is still active
     useEffect(() => {
 
@@ -61,16 +86,41 @@ const Game = ({ user, role, users, gameId = null} ) => {
 
             if (!game.active) {
                 
-                if(!quit) {
-                    alert('The other user has left the game. Redirecting to home page...');
-                    // Wait 2 seconds before redirecting
+                setTimeout(() => {
+                    alert('The game has ended!');
+                    window.location.href = '/';
                 }
-
-                window.location.href = '/';
+                , 3000);
+            
             }
         }
 
     }, [gameQuery]);
+
+    // Check if game is over
+    useEffect(() => {
+
+        if (gameQuery) {
+            
+            console.log("Final votes are: ", gameQuery.votes);
+
+            // The suspected AI is the person with the most votes in gameQuery.votes
+            const suspectedAIuid = Object.keys(gameQuery.votes).reduce((a, b) => gameQuery.votes[a] > gameQuery.votes[b] ? a : b);
+
+            setSuspectedAI(users[suspectedAIuid]);
+            
+            if (suspectedAIuid === "ai") setTeamWon("Humans");
+            else setTeamWon("Impostors");
+
+            // Set game active to false
+            gameRef.update({
+                active: false
+            });
+        }
+
+    }, [gameOver]);
+
+
 
     // Check changes in the status of the current round
     useEffect(() => {
@@ -83,7 +133,6 @@ const Game = ({ user, role, users, gameId = null} ) => {
 
                 // If current user is the asker, set isAsking to true
                 if (round.asker === user.uid) {
-                    console.log("test?")
                     setIsAsking(true);
                 }
             } 
@@ -103,7 +152,6 @@ const Game = ({ user, role, users, gameId = null} ) => {
                     clearInterval(interval);
                     setIsVoting(false);
                 
-
                     // Get index of current asker and increment. If index goes out of bounds of game.askOrder, set game.active to false.
 
                     const askOrder = gameQuery.askOrder;
@@ -119,22 +167,7 @@ const Game = ({ user, role, users, gameId = null} ) => {
                     if (nextAskerIndex >= askOrder.length) {
 
                         setGameOver(true);
-
-                        // The suspected AI is the person with the most votes in gameQuery.votes
-                        const votes = gameQuery.votes;
-                        console.log(votes)
-                        const suspectedAIuid = Object.keys(votes).reduce((a, b) => votes[a] > votes[b] ? a : b);
-                        
-                        if (suspectedAIuid === "ai") setTeamWon("Humans");
-                        else setTeamWon("Impostors");
-
-                        usersRef.doc(suspectedAIuid).get().then((doc) => {
-                            if (doc.exists) {
-                                setSuspectedAI(doc.data());
-                            } 
-                        });
-                        
-
+                    
                     }
                     else {
 
@@ -164,16 +197,18 @@ const Game = ({ user, role, users, gameId = null} ) => {
     }, [round]);
 
 
-    const leaveGame = () => {
-
+    function leaveGame() {
+        
         setQuit(true);
 
-        // Set game active to false
+        // Set the user's value in abandonedAt to the current date-time.
+
         gameRef.update({
-            active: false,
+            [`abandonedAt.${user.uid}`]: firebase.firestore.FieldValue.serverTimestamp(),
         });
 
-        alert('You have left the game. Redirecting to home page...')
+        window.location.href = '/';
+        
     };
     
     

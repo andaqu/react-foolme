@@ -26,7 +26,6 @@ const Answer = ({ gameId, roundId, answer, uid, handleOnClick, canVote}) => {
 
     return (
         <div>
-            { console.log(answer) }
             <p> {answer} </p>
             <div>
                 <button disabled = {!canVote} onClick={() => handleOnClick(uid)}>Vote</button>

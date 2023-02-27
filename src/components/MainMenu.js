@@ -67,7 +67,7 @@ const MainMenu = ({ user }) => {
               const userIds = Object.keys(game.roles);
               userIds.push("ai");
               const users = await getUserProfilesFromIds(userIds)
-            setUsers(users);
+              setUsers(users);
             }
           });
         
@@ -82,12 +82,25 @@ const MainMenu = ({ user }) => {
   }, [userInQueueQuery]);
 
   const getUserProfilesFromIds = (userIds) => {
-    return Promise.all(userIds.map(userId => usersRef.doc(userId).get().then(doc => doc.data())));
+    // return as a dict of {uid: user}
+    return new Promise((resolve, reject) => {
+      const users = {};
+      const promises = [];
+      userIds.forEach(uid => {
+        const promise = usersRef.doc(uid).get().then(doc => {
+          if (doc.exists) {
+            users[uid] = doc.data();
+          }
+        });
+        promises.push(promise);
+      });
+      Promise.all(promises).then(() => resolve(users));
+    });
   }
 
 
   const handleOnClick = () => {
-   
+
     oldestQuery.get().then(async querySnapshot => {
 
       // If there are less than NUMBER_OF_USERS with had you join the queue, add yourself to the queue
@@ -118,7 +131,10 @@ const MainMenu = ({ user }) => {
         // Make a list named "askOrder" that contains an arrangement of user ids that dictate the order of who gets to ask a question
         const askOrder = [];
         for (let i = 0; i < NUMBER_OF_USERS; i++) {
-          askOrder.push(usersInGame[i]);
+          // If user is a human, add them to the askOrder
+          if (roles[usersInGame[i]] === "human"){
+            askOrder.push(usersInGame[i]);
+          }
         }
         
         // Shuffle askOrder
@@ -134,10 +150,18 @@ const MainMenu = ({ user }) => {
         }
         votes["ai"] = 0;
 
+        // Initialise abandonded dictionary with all users as false
+        const abandonedAt = {};
+        for (let i = 0; i < NUMBER_OF_USERS; i++) {
+          abandonedAt[usersInGame[i]] = false;
+        }
+
         // Add the game to the database
         gameRef.set({
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          endedAt: null,
           active: true,
+          abandonedAt: abandonedAt,
           roles: roles,
           askOrder: askOrder,
           votes: votes,
@@ -192,7 +216,7 @@ const MainMenu = ({ user }) => {
         <div>Waiting for users to join...</div>
       )}
       {gameId && (
-        <Game user={user} users={users} role={myRole} gameId={gameId}/>
+        <Game user={user} users={users} setUsers={setUsers} role={myRole} gameId={gameId}/>
       )}
     </div>
   );
