@@ -18,6 +18,7 @@ const MainMenu = ({ user }) => {
   const usersRef = db.collection('users');
 
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState({});
 
   // Query gets oldest 3 users in the queue except yourself
   const oldestQuery = queueRef
@@ -68,6 +69,7 @@ const MainMenu = ({ user }) => {
               userIds.push("ai");
               const users = await getUserProfilesFromIds(userIds)
               setUsers(users);
+              setRoles(game.roles);
             }
           });
         
@@ -187,6 +189,7 @@ const MainMenu = ({ user }) => {
         });
 
         setMyRole(roles[user.uid]);
+        setRoles(roles);
 
         const userIds = Object.keys(roles);
         userIds.push("ai");
@@ -216,7 +219,7 @@ const MainMenu = ({ user }) => {
         <div>Waiting for users to join...</div>
       )}
       {gameId && (
-        <Game user={user} users={users} setUsers={setUsers} role={myRole} gameId={gameId}/>
+        <Game user={user} role={myRole} users={users} roles={roles} setUsers={setUsers}  gameId={gameId}/>
       )}
     </div>
   );

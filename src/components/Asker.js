@@ -3,7 +3,7 @@ import firebase from 'firebase/compat/app';
 import { useFirestoreQuery, generateAIAnswer } from '../hooks';
 import Answerer from './Answerer';
 
-const Asker = ({gameId = null, round=null}) => {
+const Asker = ({gameId = null, round=null,  leaveGame, finishRound}) => {
 
     const [newQuestion, setNewQuestion] = useState('');
     const [asked, setAsked] = useState(false);
@@ -16,19 +16,29 @@ const Asker = ({gameId = null, round=null}) => {
     const roundRef = roundsRef.doc(round.id);
     const answersRef = roundRef.collection('answers');
 
-    const [timeLeft, setTimeLeft] = useState(30);
+    const [timeLeft, setTimeLeft] = useState(5);
+    const [inActive, setInActive] = useState(false);
 
-    // Set timer for 30 seconds. When timer reaches 0, console log "Time's up!"
 
     useEffect(() => {
-        if (!asked) {
+        if (!asked && round.status === "ASKING" && !inActive) {
             if (timeLeft > 0) {
                 setTimeout(() => {
                     setTimeLeft(timeLeft - 1);
                 }, 1000);
             } else if (timeLeft === 0) {
-                // TODO: Logic that kicks the player out due to inactivity
-                console.log("Time's up!");
+                
+                console.log("Set Asker to inactive")
+                setInActive(true);
+
+                finishRound();
+                
+                // Wait for 2 seconds before kicking the player out
+                setTimeout(() => {
+                    leaveGame();
+                }, 5000);
+
+
             }
         }
     }, [timeLeft, asked]);
@@ -94,34 +104,38 @@ const Asker = ({gameId = null, round=null}) => {
     
     return (
         <div>
-            {asked ? (
-
-            <Answerer gameId={gameId} round={round}/>
-
-            ) : (
-
-            <div> 
-
-                <p>It's your turn to ask a question!</p>
-                <p>Time left to ask: {timeLeft}</p>
-
-                <form onSubmit={handleOnSubmit}>
-                    <input
+            {!inActive && (
+                <>
+                {asked ? (
+                    <Answerer gameId={gameId} round={round} leaveGame={leaveGame} />
+                ) : (
+                    <div>
+                    <p>It's your turn to ask a question!</p>
+                    <p>Time left to ask: {timeLeft}</p>
+                    <form onSubmit={handleOnSubmit}>
+                        <input
                         type="text"
                         value={newQuestion}
                         onChange={handleOnChange}
                         placeholder="Type your question here..."
-                    />
-                    <button type="submit" disabled={!newQuestion}>
-                    Send
-                    </button>
-                </form>
-
-            </div>
-
+                        />
+                        <button type="submit" disabled={!newQuestion}>
+                        Send
+                        </button>
+                    </form>
+                    </div>
+                )}
+                </>
             )}
-            
+
+            {inActive && (
+                <div>
+                <p>You have been kicked out due to inactivity!</p>
+                <p>Returning to home page in 5 seconds...</p>
+                </div>
+            )}  
         </div>
+
     );
 
 
