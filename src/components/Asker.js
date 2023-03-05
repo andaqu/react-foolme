@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import firebase from 'firebase/compat/app';
-import { useFirestoreQuery, generateAIAnswer } from '../hooks';
+import { useFirestoreQuery, generateAIAnswer, isAppropriate } from '../hooks';
 import Answerer from './Answerer';
+import Filter from 'bad-words';
 
 const Asker = ({gameId = null, round=null, users, leaveGame, answers}) => {
 
@@ -10,12 +11,13 @@ const Asker = ({gameId = null, round=null, users, leaveGame, answers}) => {
     const [currentQuestion, setCurrentQuestion] = useState('');
 
     const db = firebase.firestore();
+    const filter = new Filter();    
     
     const gameRef = db.collection('games').doc(gameId);
     const roundsRef = gameRef.collection('rounds');
     const roundRef = roundsRef.doc(round.id);
 
-    const [timeLeft, setTimeLeft] = useState(10);
+    const [timeLeft, setTimeLeft] = useState(30);
     const [inActive, setInActive] = useState(false);
 
 
@@ -57,14 +59,24 @@ const Asker = ({gameId = null, round=null, users, leaveGame, answers}) => {
             alert("This question has already been asked!");
             return;
         }
+
+        const appropriate = await isAppropriate(newQuestion);
+
+        // Check if question is appropriate
+        if (!appropriate) {
+            alert("This question is not appropriate!");
+            return;
+        }
  
         setAsked(true);
 
-        const aiAnswer = await generateAIAnswer(newQuestion, previousAIAnswers);
+        const filteredNewQuestion = filter.clean(newQuestion);
+
+        const aiAnswer = await generateAIAnswer(filteredNewQuestion, previousAIAnswers);
 
         // Add question to round
         roundRef.update({
-            question: newQuestion,
+            question: filteredNewQuestion,
             status: 'ANSWERING'
         });
 
@@ -87,7 +99,7 @@ const Asker = ({gameId = null, round=null, users, leaveGame, answers}) => {
             }
         });
 
-        setCurrentQuestion(newQuestion)
+        setCurrentQuestion(filteredNewQuestion)
 
     }
 

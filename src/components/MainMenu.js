@@ -5,7 +5,7 @@ import { useFirestoreQuery } from '../hooks';
 
 const MainMenu = ({ user }) => {
 
-  const NUMBER_OF_USERS = 3;
+  const NUMBER_OF_USERS = 2;
 
   const [gameId, setGameId] = useState(false);
 

@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-
-const axios = require('axios');
+import axios from "axios";
 
 const { Configuration, OpenAIApi } = require("openai");
 const configuration = new Configuration({
@@ -70,6 +69,28 @@ export function useAuthState(auth) {
   }, [auth, initializing]);
 
   return { user, initializing };
+}
+
+export async function isAppropriate(input){
+  // send a request using axios
+  
+  var response = "";
+
+  console.log(`Sending prompt to OpenAI...`);
+
+  try {
+    response = await openai.createModeration({
+      input: input
+    });
+  } catch (error) {
+    console.log(error);
+    console.log("There was an error... trying again...")
+  }
+
+  console.log(`Response from OpenAI: ${JSON.stringify(response.data)}`);
+
+  return !response.data.results[0].flagged;
+
 }
 
 export async function generateAIAnswer(question, previousAnswers) {

@@ -1,0 +1,9 @@
+* Implement score system
+
+* Implement ChatGPT for answering
+
+* Implement the Moderation endpoint for question checking
+
+* Implement custom prompt
+
+* Clean up code
