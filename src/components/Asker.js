@@ -3,7 +3,7 @@ import firebase from 'firebase/compat/app';
 import { useFirestoreQuery, generateAIAnswer } from '../hooks';
 import Answerer from './Answerer';
 
-const Asker = ({gameId = null, round=null, users, leaveGame, finishRound, answers}) => {
+const Asker = ({gameId = null, round=null, users, leaveGame, answers}) => {
 
     const [newQuestion, setNewQuestion] = useState('');
     const [asked, setAsked] = useState(false);

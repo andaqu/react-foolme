@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
 import firebase from 'firebase/compat/app';
-import { useFirestoreQuery } from '../hooks';
 
 const Answerer = ({gameId = null, round, users, leaveGame}) => {
 
@@ -16,7 +15,6 @@ const Answerer = ({gameId = null, round, users, leaveGame}) => {
     const [currentQuestion, setCurrentQuestion] = useState('');
     const [timeLeft, setTimeLeft] = useState(10);
 
-    const [inActive, setInActive] = useState(false);
 
     useEffect(() => {
 
@@ -51,8 +49,9 @@ const Answerer = ({gameId = null, round, users, leaveGame}) => {
 
         if (currentQuestion && round.answers && users) {
           
-            if (Object.keys(round.answers).length === Object.keys(users).length) {
-     
+          // If all keys in users are all the keys in answers
+            if (Object.keys(users).every((key) => Object.keys(round.answers).includes(key))) {
+
                 roundRef.update({
                     status: "VOTING"
                 });

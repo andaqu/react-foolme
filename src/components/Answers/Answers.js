@@ -79,7 +79,7 @@ const Answers = ({gameId, round, role, users, user}) => {
                       {/* <p>{user.displayName}</p> */}
                       <img width="50" height="50" src={users[uid].photoURL} alt="Avatar"/>
  
-                      {round.status == "VOTING" ? (
+                      {round.status == "VOTING" && round.answers[uid] ? (
                         
                         <Answer 
                             answer={round.answers[uid].text}

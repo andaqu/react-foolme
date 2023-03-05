@@ -54,7 +54,6 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
         if (round && users) {
             setIsLoaded(true);
 
-            console.log(initialUsers)
             if (initialUsers.length === 0) {
                 setInitialUsers(users);
             }
@@ -106,13 +105,21 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
             if (!game.active) {
 
                 setGameOver(true);
-
-                // window.location.href = '/';
             
+            } else {
+
+                if (Object.keys(users).length === 2) {
+                    console.log("Setting game to inactive!")
+                    gameRef.update({
+                        endedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        active: false
+                    });
+                }
+
             }
         }
 
-    }, [gameQuery]);
+    }, [gameQuery, users]);
 
     // Check if game is over
     useEffect(() => {
@@ -149,11 +156,6 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
                 
              
             }
-
-            // Set game active to false
-            gameRef.update({
-                active: false
-            });
         }
 
     }, [gameOver]);
@@ -210,9 +212,10 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
 
         setQuit(true);
 
-        // Set the user's value in abandonedAt to the current date-time.
+        // If you are the only user in the game, set game active to false
+        console.log("Leaving...")
 
-        
+        // Set the user's value in abandonedAt to the current date-time.
         gameRef.update({
             [`abandonedAt.${user.uid}`]: firebase.firestore.FieldValue.serverTimestamp(),
         });
