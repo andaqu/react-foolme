@@ -3,7 +3,7 @@ import firebase from 'firebase/compat/app';
 import { useFirestoreQuery, generateAIAnswer } from '../hooks';
 import Answerer from './Answerer';
 
-const Asker = ({gameId = null, round=null,  leaveGame, finishRound}) => {
+const Asker = ({gameId = null, round=null, users, leaveGame, finishRound, answers}) => {
 
     const [newQuestion, setNewQuestion] = useState('');
     const [asked, setAsked] = useState(false);
@@ -14,9 +14,8 @@ const Asker = ({gameId = null, round=null,  leaveGame, finishRound}) => {
     const gameRef = db.collection('games').doc(gameId);
     const roundsRef = gameRef.collection('rounds');
     const roundRef = roundsRef.doc(round.id);
-    const answersRef = roundRef.collection('answers');
 
-    const [timeLeft, setTimeLeft] = useState(5);
+    const [timeLeft, setTimeLeft] = useState(10);
     const [inActive, setInActive] = useState(false);
 
 
@@ -27,17 +26,8 @@ const Asker = ({gameId = null, round=null,  leaveGame, finishRound}) => {
                     setTimeLeft(timeLeft - 1);
                 }, 1000);
             } else if (timeLeft === 0) {
-                
-                console.log("Set Asker to inactive")
-                setInActive(true);
-
-                finishRound();
-                
-                // Wait for 2 seconds before kicking the player out
-                setTimeout(() => {
-                    leaveGame();
-                }, 5000);
-
+            
+                leaveGame();
 
             }
         }
@@ -78,10 +68,15 @@ const Asker = ({gameId = null, round=null,  leaveGame, finishRound}) => {
             status: 'ANSWERING'
         });
 
-        // Add AI answer to round's answers collection in the form of {uid: answer}
-        answersRef.doc('ai').set({
-            text: aiAnswer,
-            votes: 0
+        // Add AI answer to round's answers dictionary in the form of {"ai": {text: answer, votes: 0}}
+        roundRef.update({
+            answers: {
+                "ai": {
+                    text: aiAnswer,
+                    votes: 0
+                },
+                ...answers
+            }
         });
 
         // Add question:answer pair to game's aiAnswers dictionary
@@ -94,8 +89,6 @@ const Asker = ({gameId = null, round=null,  leaveGame, finishRound}) => {
 
         setCurrentQuestion(newQuestion)
 
-        
-
     }
 
     const handleOnChange = e => {
@@ -104,36 +97,27 @@ const Asker = ({gameId = null, round=null,  leaveGame, finishRound}) => {
     
     return (
         <div>
-            {!inActive && (
-                <>
-                {asked ? (
-                    <Answerer gameId={gameId} round={round} leaveGame={leaveGame} />
-                ) : (
-                    <div>
-                    <p>It's your turn to ask a question!</p>
-                    <p>Time left to ask: {timeLeft}</p>
-                    <form onSubmit={handleOnSubmit}>
-                        <input
-                        type="text"
-                        value={newQuestion}
-                        onChange={handleOnChange}
-                        placeholder="Type your question here..."
-                        />
-                        <button type="submit" disabled={!newQuestion}>
-                        Send
-                        </button>
-                    </form>
-                    </div>
-                )}
-                </>
-            )}
-
-            {inActive && (
+        
+            {asked ? (
+                <Answerer gameId={gameId} round={round} users={users} leaveGame={leaveGame} answers={answers}/>
+            ) : (
                 <div>
-                <p>You have been kicked out due to inactivity!</p>
-                <p>Returning to home page in 5 seconds...</p>
+                <p>It's your turn to ask a question!</p>
+                <p>Time left to ask: {timeLeft}</p>
+                <form onSubmit={handleOnSubmit}>
+                    <input
+                    type="text"
+                    value={newQuestion}
+                    onChange={handleOnChange}
+                    placeholder="Type your question here..."
+                    />
+                    <button type="submit" disabled={!newQuestion}>
+                    Send
+                    </button>
+                </form>
                 </div>
-            )}  
+            )}
+                
         </div>
 
     );

@@ -5,6 +5,7 @@ import Answerer from './Answerer';
 import Asker from './Asker';
 import Answers from './Answers/Answers';
 import { useFirestoreQuery } from '../hooks';
+import { isCompositeComponent } from 'react-dom/test-utils';
 
 
 const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
@@ -14,7 +15,8 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
     const gamesRef = db.collection('games');
 
     const gameRef = gamesRef.doc(gameId);
-    const roundsRef = gameRef.collection('rounds')
+    const roundsRef = gameRef.collection('rounds');
+    let answers = null;
 
     const [isLoaded, setIsLoaded] = useState(false);
     const [isVoting, setIsVoting] = useState(false);
@@ -35,6 +37,8 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
 
     const [suspectedAI, setSuspectedAI] = useState("");
 
+    const [initialUsers, setInitialUsers] = useState([]);
+
     // If user refreshes page or navigates away, call and await leaveGame async function
     useEffect(() => {
         window.addEventListener('beforeunload', leaveGame);
@@ -49,6 +53,11 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
         
         if (round && users) {
             setIsLoaded(true);
+
+            console.log(initialUsers)
+            if (initialUsers.length === 0) {
+                setInitialUsers(users);
+            }
         }
         
     }, [round, users]);
@@ -67,7 +76,6 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
             // If the most recent abandoner is not the current user, print out their name and date-time
             if (!quit) {
                 
-                // Update users by removing the user with abandonerUid
                 const newUsers = {...users};
                 delete newUsers[abandonerUid];
                 setUsers(newUsers);
@@ -77,13 +85,12 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
                 const numImpostors = Object.values(newUsers).filter((user) => roles[user.uid] === "impostor").length;
 
                 // TODO: Do sufficient player check logic here
-                console.log(numHumans)
-                console.log(numImpostors)
-
+             
                 // Check if the abandoner is the person who is currently asking. 
                 if (round.asker === abandonerUid && round.status === "ASKING") {
-                    // TODO: Show notification to all players
-                    console.log("The asker has left the game. Getting a new asker...");
+                    
+                    finishRound();
+                    
                 }
 
             }
@@ -97,8 +104,6 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
             const game = gameQuery;
 
             if (!game.active) {
-                
-                console.log("The game has ended!")
 
                 setGameOver(true);
 
@@ -114,7 +119,6 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
 
         if (gameQuery) {
             
-            console.log("Final votes are: ", gameQuery.votes);
 
             // If the sum of gameQuery.votes is 0, no-body won.
             if (Object.values(gameQuery.votes).reduce((a, b) => a + b) === 0) {
@@ -122,13 +126,28 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
             } else {
 
                 // The suspected AI is the person with the most votes in gameQuery.votes
-                const suspectedAIuid = Object.keys(gameQuery.votes).reduce((a, b) => gameQuery.votes[a] > gameQuery.votes[b] ? a : b);
 
-                setSuspectedAI(users[suspectedAIuid]);
+                // Get an array of all players with the maximum number of votes
+                const maxVotes = Object.keys(gameQuery.votes).filter((uid) => {
+                    return gameQuery.votes[uid] === Math.max(...Object.values(gameQuery.votes));
+                });
                 
-                if (suspectedAIuid === "ai") setTeamWon("Humans");
-                else setTeamWon("Impostors");
+                // If there is only one player with the maximum number of votes, they are the suspected AI
+                // Otherwise, select one player randomly from the players with the maximum number of votes as the suspected AI
+                const suspectedAIuid = maxVotes.length === 1 ? maxVotes[0] : null;
 
+                if(suspectedAIuid){
+                    setSuspectedAI(initialUsers[suspectedAIuid]);
+                
+                    if (suspectedAIuid === "ai") 
+                        setTeamWon("Humans");
+                    else 
+                        setTeamWon("Impostors");    
+                } else {
+                    setTeamWon("Tie");
+                }
+                
+             
             }
 
             // Set game active to false
@@ -143,21 +162,23 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
 
     // Check changes in the status of the current round
     useEffect(() => {
-  
             
-        if (round) {            
+        if (round) {      
+            
+            console.log("Triggered change in round!")
 
-            if (round.status === "ASKING") {
-                console.log("Round is now in asking phase");
+            if (!isAsking && round.status === "ASKING") {
 
                 // If current user is the asker, set isAsking to true
                 if (round.asker === user.uid) {
                     setIsAsking(true);
+                } else {
+                    setIsAsking(false);
                 }
             } 
 
-            else if (round.status === "VOTING"){
-                console.log("Round is now in voting phase");
+            else if (!isVoting && round.status === "VOTING"){
+              
                 setTimeLeft(10);
                 setIsVoting(true);
 
@@ -202,29 +223,37 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
 
     function finishRound(){
 
-        // Get index of current asker and increment. If index goes out of bounds of game.askOrder, set game.active to false.
+        // askers is a dictionary of {uid: boolean} where boolean is true if the user has asked a question
 
-        const askOrder = gameQuery.askOrder;
-        const currentAskerIndex = askOrder.indexOf(round.asker);
-        const nextAskerIndex = currentAskerIndex + 1;
+        const askers = gameQuery.askers
 
-        
-        // Set current round to "FINISHED"
-        roundsRef.doc(round.id).update({
-            status: "FINISHED",
+        // Set the current asker's value in askers to true
+        askers[round.asker] = true;
+
+        // Update the game's askers
+        gameRef.update({
+            askers: askers
         });
+        
+        const usersInGame = Object.keys(users);
+        
+        // Get the list of users which are human and have not asked a question yet
+        const usersLeftToAsk = usersInGame.filter((uid) => roles[uid] === "human" && !askers[uid]);
 
-        if (nextAskerIndex >= askOrder.length) {
+        console.log(usersLeftToAsk)
+
+        if (usersLeftToAsk.length === 0) {
 
             setGameOver(true);
         
         }
         else {
 
+            const nextAsker = usersLeftToAsk[0]
+            // Add nextAsker to askedAlready using setAskedAlready
 
-            if (round.asker === user.uid) {
+            if (user.uid === nextAsker) {
 
-                const nextAsker = askOrder[nextAskerIndex];
                 const newRound = {
                     asker: nextAsker,
                     status: "ASKING",
@@ -247,13 +276,18 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
             gameOver ? (
                 <div>
                <h3> Game over! </h3>
-                    {teamWon === "Humans" ? (
-                    <p> The AI was spotted! </p>
-                    ) : teamWon === "Impostors" ? (
+               {teamWon === "Humans" ? (
+                <p> The AI was spotted! </p>
+                ) : teamWon === "Impostors" ? (
+                <div>
                     <p> {`The suspected AI was ${suspectedAI.displayName} which is actually a ${gameQuery.roles[suspectedAI.uid]}!`} </p>
-                    ) : (
-                    <p> No votes were made! Nobody wins! </p>
-                    )}
+                    <img width="50" height="50" src={suspectedAI.photoURL} alt="Avatar"/>
+                </div>
+                ) : teamWon === "Nobody" ? (
+                <p> No votes were made! Nobody wins! </p>
+                ) : teamWon === "Tie" ? (
+                <p> The votes was a tie! </p>
+                ) : null}
                 </div>
             ) : (
                 <div>
@@ -273,13 +307,13 @@ const Game = ({ user, role, users, roles, setUsers, gameId = null} ) => {
                     
                     <div>
                         {isAsking ? (
-                        <Asker gameId={gameId} round={round} leaveGame={leaveGame} finishRound={finishRound}/>
+                        <Asker gameId={gameId} round={round} users={users} leaveGame={leaveGame} finishRound={finishRound} answers={answers}/>
                         ) : (
-                        <Answerer gameId={gameId} round={round} leaveGame={leaveGame}/>
+                        <Answerer gameId={gameId} round={round} users={users}  leaveGame={leaveGame} answers={answers}/>
                         )}
                     </div>
                     
-                    <Answers gameId={gameId} round={round} role={role} users={users} user={user}/>
+                    <Answers gameId={gameId} round={round} role={role} users={users} user={user} answers={answers}/>
                         
                 </div>
             )

@@ -5,7 +5,7 @@ import { useFirestoreQuery } from '../hooks';
 
 const MainMenu = ({ user }) => {
 
-  const NUMBER_OF_USERS = 2;
+  const NUMBER_OF_USERS = 3;
 
   const [gameId, setGameId] = useState(false);
 
@@ -73,7 +73,6 @@ const MainMenu = ({ user }) => {
             }
           });
         
-          console.log('Removing yourself from the queue...');
           queueRef.doc(userInQueueQuery.id).delete();
         }
       } else {
@@ -130,20 +129,18 @@ const MainMenu = ({ user }) => {
           roles[usersInGame[i]] = i === 0 ? "impostor" : "human";
         }
 
-        // Make a list named "askOrder" that contains an arrangement of user ids that dictate the order of who gets to ask a question
-        const askOrder = [];
+        // askers is a dictionary of {uid: boolean} where the boolean is true if the user has asked a question. Only humans ask questions.
+        const askers = {};
         for (let i = 0; i < NUMBER_OF_USERS; i++) {
-          // If user is a human, add them to the askOrder
-          if (roles[usersInGame[i]] === "human"){
-            askOrder.push(usersInGame[i]);
+          if (roles[usersInGame[i]] !== "human") {
+            continue
           }
+          askers[usersInGame[i]] = false;
         }
-        
-        // Shuffle askOrder
-        for (let i = askOrder.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [askOrder[i], askOrder[j]] = [askOrder[j], askOrder[i]];
-        }
+
+        // Choose a random first asker from askers
+        const askerKeys = Object.keys(askers);
+        const firstAsker = askerKeys[Math.floor(Math.random() * askerKeys.length)];
 
         // Initialise votes to have all users vote for themselves
         const votes = {};
@@ -165,7 +162,7 @@ const MainMenu = ({ user }) => {
           active: true,
           abandonedAt: abandonedAt,
           roles: roles,
-          askOrder: askOrder,
+          askers: askers,
           votes: votes,
           aiAnswers: {},
         });
@@ -174,8 +171,9 @@ const MainMenu = ({ user }) => {
         gameRef.collection('rounds').doc().set({
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           status: 'ASKING',
-          asker: askOrder[0],
-          question: ''
+          asker: firstAsker,
+          question: '',
+          answers: {}
         })
     
         // Get game id

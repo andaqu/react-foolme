@@ -2,10 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import firebase from 'firebase/compat/app';
 import { useFirestoreQuery } from '../hooks';
 
-const Answerer = ({gameId = null, round, leaveGame}) => {
+const Answerer = ({gameId = null, round, users, leaveGame}) => {
 
     const [newAnswer, setNewAnswer] = useState('');
-    const [asked, setAsked] = useState(false);
     const [answered, setAnswered] = useState(false);
 
     const db = firebase.firestore();
@@ -13,11 +12,9 @@ const Answerer = ({gameId = null, round, leaveGame}) => {
     const gameRef = db.collection('games').doc(gameId);
     const roundsRef = gameRef.collection('rounds');
     const roundRef = roundsRef.doc(round.id);
-    const answersRef = roundRef.collection('answers');
-    const answerRef = answersRef.doc(firebase.auth().currentUser.uid)
 
     const [currentQuestion, setCurrentQuestion] = useState('');
-    const [timeLeft, setTimeLeft] = useState(5);
+    const [timeLeft, setTimeLeft] = useState(10);
 
     const [inActive, setInActive] = useState(false);
 
@@ -25,53 +22,61 @@ const Answerer = ({gameId = null, round, leaveGame}) => {
 
           if (round.status==="ANSWERING") {
               setCurrentQuestion(round.question);
-              setAsked(true)
           } else if (round.status==="ASKING") {
               setCurrentQuestion("")
+              setAnswered(false);
+              setTimeLeft(10);
           }
 
-    }, [round.status]);
+    }, [round]);
 
     useEffect(() => {
        
-        if (asked && !answered && round.status === "ANSWERING" && !inActive) {
+        if (!answered && currentQuestion) {
             
             if (timeLeft > 0) {
                 setTimeout(() => {
                     setTimeLeft(timeLeft - 1);
                 }, 1000);
             } else if (timeLeft === 0) {
-              
-              console.log("Set Answerer to inactive")
-              setInActive(true);
 
-              // Wait for 2 seconds before kicking the player out
-              setTimeout(() => {
-                  leaveGame();
-              }, 5000);
+              leaveGame();
+              
             }
         }
-    }, [timeLeft, answered]);
+    }, [timeLeft, answered, currentQuestion]);
+
+    // If everyone in the users answered, set status of round to "VOTING"
+    useEffect(() => {
+
+        if (currentQuestion && round.answers && users) {
+          
+            if (Object.keys(round.answers).length === Object.keys(users).length) {
+     
+                roundRef.update({
+                    status: "VOTING"
+                });
+               
+            }
+        }
+    }, [round.answers, users, currentQuestion]);
+    
       
     const handleOnSubmit = (e) => {
         e.preventDefault();
         
-        // Add answer to round's answers collection in the form of {uid: answer}
-        answerRef.set({
-            text: newAnswer,
-            votes: 0
+        // Add answer to round's answers dictionary in the form of {uid: {text: answer, votes: 0}}
+        roundRef.update({
+            answers: {
+                ...round.answers,
+                [firebase.auth().currentUser.uid]: {
+                    text: newAnswer,
+                    votes: 0
+                }
+            }
         });
 
         setAnswered(true);
-
-        // If documents in AnswersRef == 1, set status of round to "VOTING"
-        answersRef.get().then((querySnapshot) => {
-            if (querySnapshot.size == 3) {
-                roundRef.update({
-                    status: 'VOTING'
-                });
-            }
-        });
 
         setNewAnswer("");
 
@@ -83,8 +88,7 @@ const Answerer = ({gameId = null, round, leaveGame}) => {
     
       return (
         <div>
-          {!inActive && (
-            <>
+      
               {answered ? (
                 <div>
                   <h3>Question: {currentQuestion}</h3>
@@ -111,15 +115,9 @@ const Answerer = ({gameId = null, round, leaveGame}) => {
               ) : (
                 <p>Waiting for question to be asked...</p>
               )}
-            </>
-          )}
+           
 
-          {inActive && (
-            <div>
-              <p>You have been kicked out due to inactivity!</p>
-              <p>Returning to home page in 5 seconds...</p>
-            </div>
-          )}
+      
         </div>
 
       );

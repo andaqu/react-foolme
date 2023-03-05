@@ -10,29 +10,13 @@ const Answers = ({gameId, round, role, users, user}) => {
     const gameRef = db.collection('games').doc(gameId);
     const roundsRef = gameRef.collection('rounds');
     const roundRef = roundsRef.doc(round.id);
-    const answersRef = roundRef.collection('answers');
-
-    const [answers, setAnswers] = useState({});
 
     const [voted, setVoted] = useState(false);
 
+    // If answers changed, set voted to false
     useEffect(() => {
-        if (round.status == "VOTING") {
+        if(round.status == "ANSWERING"){
             setVoted(false);
-
-            // Get all answers from round
-            answersRef.get().then((querySnapshot) => {
-                var answers = {};
-                querySnapshot.forEach((doc) => {
-                    answers[doc.id] = doc.data();
-                });
-                setAnswers(answers);
-                
-
-            });
-
-        } else if (round.status == "ASKING") {
-            setAnswers({});
         }
     }, [round.status]);
 
@@ -40,9 +24,21 @@ const Answers = ({gameId, round, role, users, user}) => {
 
       console.log("Voting for " + uid);
 
-      answersRef.doc(uid).update({
-          votes: firebase.firestore.FieldValue.increment(1)
-      });
+      // Add vote to answer (answers is a field in the round document)
+        roundRef.get().then((doc) => {
+            if (doc.exists) {
+                var answers = doc.data().answers;
+                if (answers) {
+                    if (answers[uid]) {
+                        answers[uid]["votes"] += 1;
+                    } 
+
+                    roundRef.update({
+                        answers: answers
+                    });
+                }
+            }
+        });
 
       // Update gameRef with new vote. gameRef has a field called "votes" which is a dictionary of {uid: votes}.
 
@@ -83,17 +79,15 @@ const Answers = ({gameId, round, role, users, user}) => {
                       {/* <p>{user.displayName}</p> */}
                       <img width="50" height="50" src={users[uid].photoURL} alt="Avatar"/>
  
-                      {Object.keys(answers).length > 0 ? (
+                      {round.status == "VOTING" ? (
                         
-                        <div>
-                          <Answer 
-                            gameId={gameId} 
-                            roundId={round.id}
-                            answer={answers[uid].text}
+                        <Answer 
+                            answer={round.answers[uid].text}
+                            votes={round.answers[uid].votes}
                             uid={uid}
                             handleOnClick={handleOnClick} 
                             canVote={!voted && role == "human" && uid != user.uid}/>
-                          </div>
+                          
                       ) : null}
                   </div>
               )
